@@ -1,25 +1,25 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:appinio_swiper/appinio_swiper.dart';
+import 'package:joke_inder/jokes/joke_controller.dart';
 
-import 'joke.dart';
+import 'dart:developer';
+import 'jokes/joke.dart';
 
-const chuckURL = "https://api.chucknorris.io/jokes/random";
+JokeController jokeController = JokeController.create();
+
 const buttonHeight = 65.0;
 const buttonWidth = 150.0;
+const jokeCacheSize = 5;
 
-var fire = 0;
-var crap = 0;
-
-final dio = Dio();
-
-void main() {
+void main() async {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -42,11 +42,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final PageController _jokePageController = PageController();
+  final AppinioSwiperController controller = AppinioSwiperController();
 
   @override
   void dispose() {
-    _jokePageController.dispose();
+    controller.dispose();
     super.dispose();
   }
 
@@ -57,129 +57,115 @@ class _HomePageState extends State<HomePage> {
         appBar: AppBar(
           title: Text(widget.title),
         ),
-        body: Column(
-          children: <Widget>[
-            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-              Padding(
-                  padding: const EdgeInsets.fromLTRB(2, 5, 1, 5),
-                  child: Text(
-                    "💩: $crap",
-                    style: const TextStyle(fontSize: 30),
-                  )),
-              Padding(
-                  padding: const EdgeInsets.fromLTRB(1, 5, 2, 5),
-                  child: SizedBox(
-                      child: Text(
-                    "🔥: $fire",
-                    style: const TextStyle(fontSize: 30),
-                  )))
-            ]),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8.0),
-                  child: PageView.builder(
-                    controller: _jokePageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    allowImplicitScrolling: true,
-                    itemBuilder: (BuildContext context, int index) {
-                      return FutureBuilder<Joke>(
-                          future: getRandomJoke(),
-                          builder: (context, AsyncSnapshot<Joke> snapshot) {
-                            if (snapshot.hasData) {
-                              String? jokeText = "";
-                              String? jokeIconUrl = "";
+        body: FutureBuilder<List<Joke>>(
+            future: jokeController.initializeJokesList(),
+            builder:
+                (BuildContext context, AsyncSnapshot<List<Joke>> snapshot) {
+              if (snapshot.hasData) {
+                return Column(
+                  children: <Widget>[
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Padding(
+                              padding: const EdgeInsets.fromLTRB(2, 5, 1, 5),
+                              child: Text(
+                                getJokesCountString(false),
+                                style: const TextStyle(fontSize: 30),
+                              )),
+                          Padding(
+                              padding: const EdgeInsets.fromLTRB(1, 5, 2, 5),
+                              child: SizedBox(
+                                  child: Text(
+                                    getJokesCountString(true),
+                                    style: const TextStyle(fontSize: 30),
+                                  )))
+                        ]),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(15.0),
+                        child: SizedBox(
+                          height: MediaQuery
+                              .of(context)
+                              .size
+                              .height * 0.75,
+                          child: AppinioSwiper(
+                            controller: controller,
+                            cardsCount: jokeCacheSize,
+                            loop: true,
+                            swipeOptions: AppinioSwipeOptions.allDirections,
+                            allowUnswipe: true,
+                            onSwipe: (int index, var swipeDirection) {
+                              if (swipeDirection == AppinioSwiperDirection.bottom) {
+                                controller.unswipe();
+                              } else {
+                                log("${(index - 1) %
+                                    jokeCacheSize} $swipeDirection");
 
-                              jokeText = snapshot.data?.value;
-                              jokeIconUrl = snapshot.data?.iconUrl;
+                                var feedback =
+                                swipeDirection == AppinioSwiperDirection.right
+                                    ? JokeFeedback.NiceJoke
+                                    : JokeFeedback.BadJoke;
 
-                              return createJokePage(jokeText, jokeIconUrl);
-                            } else {
-                              return const CircularProgressIndicator();
-                            }
-                          });
-                    },
-                    onPageChanged: (page) {
-                      setState(() {});
-                    },
-                  ),
-                ),
-              ),
-            ),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-              Padding(
-                  padding: const EdgeInsets.fromLTRB(2, 2, 1, 5),
-                  child: SizedBox(
-                    width: buttonWidth,
-                    height: buttonHeight,
-                    child: ElevatedButton(
-                        onPressed: () {
-                          nextPage(_jokePageController);
-                          crap++;
-                        },
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent,
-                            textStyle: const TextStyle(fontSize: 30)),
-                        child: const Text(
-                          "💩",
-                          textScaleFactor: 1.4,
-                        )),
-                  )),
-              Padding(
-                  padding: const EdgeInsets.fromLTRB(1, 2, 2, 5),
-                  child: SizedBox(
-                    width: buttonWidth,
-                    height: buttonHeight,
-                    child: ElevatedButton(
-                        onPressed: () {
-                          nextPage(_jokePageController);
-                          fire++;
-                        },
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.lightGreen,
-                            textStyle: const TextStyle(fontSize: 30)),
-                        child: const Text("🔥", textScaleFactor: 1.4)),
-                  ))
-            ])
-          ],
-        ),
+                                jokeController.sendJokeFeedback(
+                                    (index - 1) % jokeCacheSize,
+                                    feedback);
+                                jokeController.updateJoke(
+                                    (index - 1) % jokeCacheSize);
+                                setState(() {
+
+                                });
+                              }
+                            },
+                            cardsBuilder: (BuildContext context, int index) {
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: createJokePage(
+                                    jokeController.jokes[index]),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              } else {
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
+              }
+            }),
       ),
     );
   }
 }
 
-Future<Joke> getRandomJoke() async {
-  final response = await dio.get(chuckURL);
+createJokePage(Joke joke) {
+  String? text = joke.value;
+  String? iconUrl = joke.iconUrl;
 
-  Joke joke = Joke.fromJson(response.data);
-  return joke;
-}
-
-createJokePage(String? text, String? iconUrl) {
   return Container(
       color: Colors.cyan,
       child: Padding(
         padding: const EdgeInsets.all(5.0),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8.0),
-          child: Column(
-            children: [
-              const Image(
-                image: AssetImage('assets/chuck-placeholder.png'),
-              ),
-              Text(
-                text!,
-                textScaleFactor: 1.2,
-                style: const TextStyle(color: Colors.white),
-              )
-            ],
-          ),
+        child: Column(
+          children: [
+            const Image(
+              image: AssetImage('assets/chuck-placeholder.png'),
+            ),
+            Text(
+              text,
+              textScaleFactor: 1.2,
+              style: const TextStyle(color: Colors.white),
+            )
+          ],
         ),
       ));
 }
 
-void nextPage(var pageController) {
-  pageController.nextPage(
-      duration: const Duration(milliseconds: 200), curve: Curves.easeInOutSine);
+String getJokesCountString(bool isGood) {
+  final emoji = isGood ? "🔥" : "💩";
+  final count = isGood ? jokeController.goodCount : jokeController.badCount;
+  return "$emoji: $count";
 }
