@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:joke_inder/jokes/joke.dart';
 
 import 'package:dio/dio.dart';
+import 'package:joke_inder/jokes/joke_model.dart';
 import 'package:joke_inder/main.dart';
 
 enum JokeFeedback {
@@ -8,30 +10,34 @@ enum JokeFeedback {
   BadJoke
 }
 
-class JokeController {
+class JokeController extends ChangeNotifier {
 
   final Dio _dio = Dio();
   final _chuckURL = "https://api.chucknorris.io/jokes/random";
-  final _jokeCache = 5;
-  var _initialized = false;
+  int _jokeCache = 5;
+  bool _initialized = false;
 
-  var _goodCount = 0;
-  var _badCount = 0;
+  int _goodCount = 0;
+  int _badCount = 0;
 
   List<Joke> jokes = [];
+  List<Joke> favoriteJokes = [];
 
   JokeController._() {}
 
-  static final JokeController instance = JokeController._();
+  static final JokeController _instance = JokeController._();
 
-  static JokeController create() {
-    return instance;
+  static JokeController instance(int modelSize) {
+    _instance._jokeCache = modelSize;
+    return _instance;
   }
 
   int get goodCount => _goodCount;
   int get badCount => _badCount;
 
-  Future<List<Joke>> initializeJokesList() async {
+  Future<List<Joke>> initializeJokesList(JokeModel model) async {
+
+    List<Joke> jokes = [];
 
     if (!_initialized) {
       for (var i = 0; i < _jokeCache; i++) {
@@ -44,25 +50,6 @@ class JokeController {
     }
 
     return jokes;
-  }
-
-  bool waitUntilLoaded() {
-    while (!_initialized) {}
-    return true;
-  }
-
-  void sendJokeFeedback(int index, JokeFeedback feedback) {
-    if (feedback == JokeFeedback.NiceJoke) {
-      _goodCount++;
-    } else {
-      _badCount++;
-    }
-  }
-
-  void updateJoke(int index) async {
-    Joke newJoke = await getJoke();
-
-    jokes[index] = newJoke;
   }
 
   Future<Joke> getJoke() async {
