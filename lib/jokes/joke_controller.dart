@@ -5,11 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:joke_inder/jokes/joke_model.dart';
 import 'package:joke_inder/main.dart';
 
-enum JokeFeedback {
-  NiceJoke,
-  BadJoke
-}
-
 class JokeController extends ChangeNotifier {
 
   final Dio _dio = Dio();

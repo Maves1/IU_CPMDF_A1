@@ -4,10 +4,14 @@ import 'package:dio/dio.dart';
 import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:joke_inder/jokes/joke_controller.dart';
 import 'package:joke_inder/jokes/joke_model.dart';
+import 'package:joke_inder/screens/drawer.dart';
+import 'package:joke_inder/screens/favorites.dart';
+import 'package:joke_inder/screens/main.dart';
 import 'package:provider/provider.dart';
 
 import 'dart:developer';
 import 'jokes/joke.dart';
+import 'screens/ScreenProvider.dart';
 
 const buttonHeight = 65.0;
 const buttonWidth = 150.0;
@@ -15,10 +19,7 @@ const jokeCacheSize = 5;
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (ref) => JokeModel(jokeCacheSize),
-      child: const MyApp(),
-    ),
+    const MyApp()
   );
 }
 
@@ -32,15 +33,19 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.teal,
       ),
-      home: const HomePage(title: 'ChuckInder'),
+      home: MultiProvider(
+        providers: [ListenableProvider<JokeModel>(create: (_) => JokeModel(jokeCacheSize)),
+                    ListenableProvider<ScreenProvider>(create: (_) => ScreenProvider())],
+        child: const MainPage(),
+      ),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.title});
+  const HomePage({super.key});
 
-  final String title;
+  final String title = "ChuckInder";
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -59,6 +64,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
+        drawer: const ChuckDrawer(),
         appBar: AppBar(
           title: Text(widget.title),
         ),
@@ -96,7 +102,7 @@ class _HomePageState extends State<HomePage> {
                               controller: swipeController,
                               cardsCount: jokeCacheSize,
                               loop: true,
-                              swipeOptions: AppinioSwipeOptions.allDirections,
+                              swipeOptions: AppinioSwipeOptions.horizontal,
                               onSwipe: (int index, var swipeDirection) {
                                 log("${(index - 1) % jokeCacheSize} $swipeDirection");
 
@@ -121,12 +127,6 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                       ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // MaterialButton(onPressed: onPressed)
-                        ],
-                      )
                     ],
                   );
                 } else {

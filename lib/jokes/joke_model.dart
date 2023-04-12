@@ -3,10 +3,15 @@ import 'package:joke_inder/jokes/joke_controller.dart';
 
 import 'joke.dart';
 
+enum JokeFeedback {
+  NiceJoke,
+  BadJoke
+}
+
 class JokeModel extends ChangeNotifier {
 
   bool _initialized = false;
-  int _modelSize = 5;
+  int _modelSize;
   int _badCount;
 
   List<Joke> _model = [];
@@ -25,10 +30,16 @@ class JokeModel extends ChangeNotifier {
 
     return _model;
   }
+
+  Future<List<Joke>> getFavorites() async {
+    return _favorites;
+  }
   
   List<Joke> get jokes => _model;
+  List<Joke> get favorites => _favorites;
   int get favoriteCount => _favorites.length;
   int get badCount => _badCount;
+  int get length => _modelSize;
   
   void setJoke(int index, Joke joke) {
     if (index >= 0 && index < _model.length) {
